@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Mobile Split Text Transformer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --accent-2: #38bdf8;
+      --danger: #ef4444;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .half {
+      position: relative;
+      height: 50dvh;
+      padding: 16px 16px 72px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .half.bottom {
+      border-bottom: none;
+      background: var(--panel-2);
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.4;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .btn-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    button {
+      pointer-events: auto;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      min-width: 140px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    .clear-btn {
+      background: var(--danger);
+    }
+
+    .copy-btn {
+      background: var(--accent);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+  
+
+    .side-nav {
+      position: fixed;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .nav-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 16px;
+      min-width: 42px;
+      padding: 0;
+    }
+
+    .nav-btn.active {
+      background: var(--accent-2);
+      color: #082f49;
+      border-color: transparent;
+    }
+
+    .iframe-view {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: var(--bg);
+    }
+
+    .iframe-view iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .back-btn {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top));
+      right: 12px;
+      z-index: 1001;
+      background: var(--accent-2);
+      color: #082f49;
+    }
+  </style>
+</head>
+<body>
+  <div id="mainView">
+  <section class="half top">
+    <textarea id="inputText" placeholder="Type here..."></textarea>
+    <div class="btn-wrap">
+      <button class="clear-btn" id="clearBtn" type="button">Clear Input</button>
+    </div>
+  </section>
+
+  <section class="half bottom">
+    <textarea id="outputText" readonly placeholder="Output appears here..."></textarea>
+    <div class="btn-wrap">
+      <button class="copy-btn" id="copyBtn" type="button">Copy Output</button>
+    </div>
+  </section>
+  </div>
+
+  <script>
+  
+    function main() {
+    const inputText = document.getElementById('inputText');
+    const navTop = document.getElementById('navTop');
+    const navMain = document.getElementById('navMain');
+    const navBottom = document.getElementById('navBottom');
+    const mainView = document.getElementById('mainView');
+    const iframeTopView = document.getElementById('iframeTopView');
+    const iframeBottomView = document.getElementById('iframeBottomView');
+    const backFromTop = document.getElementById('backFromTop');
+    const backFromBottom = document.getElementById('backFromBottom');
+    const outputText = document.getElementById('outputText');
+    const clearBtn = document.getElementById('clearBtn');
+    const copyBtn = document.getElementById('copyBtn');
+	
+	console.log(navMain);
+	
+    function transform(input) {
+      return input
+        .toLowerCase()
+        .replaceAll(/\[.*?\]/g, "")      // poista hakasulut sisältöineen
+        .replaceAll(/\s+/g, ' ')         // muuta tyhjät väleiksi
+        .replaceAll(/[^a-z\såäöü]/g, ''); // poista erikoismerkit
+    }
+
+    function updateOutput() {
+      outputText.value = transform(inputText.value);
+    }
+
+    inputText.addEventListener('input', updateOutput);
+
+    clearBtn.addEventListener('click', () => {
+      inputText.value = '';
+    });
+    
+    function setActiveNav(activeButton) {
+      [navTop, navMain, navBottom].forEach(btn => btn.classList.remove('active'));
+      activeButton.classList.add('active');
+    }
+
+    function showMainView() {
+      mainView.hidden = false;
+      iframeTopView.hidden = true;
+      iframeBottomView.hidden = true;
+      setActiveNav(navMain);
+    }
+
+    function showTopView() {
+      mainView.hidden = true;
+      iframeBottomView.hidden = true;
+      iframeTopView.hidden = false;
+      setActiveNav(navTop);
+    }
+
+    function showBottomView() {
+      mainView.hidden = true;
+      iframeTopView.hidden = true;
+      iframeBottomView.hidden = false;
+      setActiveNav(navBottom);
+    }
+
+    // navTop.addEventListener('click', showTopView);
+    navMain.addEventListener('click', showMainView);
+    navBottom.addEventListener('click', showBottomView);
+    backFromTop.addEventListener('click', showMainView);
+    backFromBottom.addEventListener('click', showMainView);
+
+    updateOutput();
+    inputText.focus();
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(outputText.value);
+        const original = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = original;
+        }, 1000);
+      } catch {
+        outputText.select();
+        document.execCommand('copy');
+        const original = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = original;
+        }, 1000);
+      }
+    });
+
+    updateOutput();
+    }
+    
+    window.onload = main;
+  </script>
+  <div class="side-nav" aria-label="Navigation">
+    <a href="https://www.raamattu.fi/raamattu/KR92/GEN.1" target="_blank"><button class="nav-btn" id="navTop" type="button">1</button></a>
+    <button class="nav-btn active" id="navMain" type="button">2</button>
+    <button class="nav-btn" id="navBottom" type="button">3</button>
+  </div>
+
+  <div class="iframe-view" id="iframeTopView" hidden>
+    <button class="back-btn" id="backFromTop" type="button" hidden>Back</button>
+    <iframe src="" title="Top View"></iframe>
+  </div>
+
+  <div class="iframe-view" id="iframeBottomView" hidden>
+    <button class="back-btn" id="backFromBottom" type="button" hidden>Back</button>
+    <iframe src="https://www.diffchecker.com/" title="Bottom View"></iframe>
+  </div>
+</body>
+</html>
+/div>
+</body>
+</html>
+</body>
+</html>
